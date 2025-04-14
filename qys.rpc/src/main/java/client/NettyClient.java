@@ -19,6 +19,12 @@ import io.netty.util.AttributeKey;
 import model.ClientRequest;
 import model.Response;
 
+/**
+ * `NettyClient` 类用于创建一个基于 Netty 的客户端，以实现与服务器的异步通信。
+ * 它借助 Netty 框架来创建并管理与指定服务器和端口的 TCP 连接。
+ * 该类通过自定义的协议处理器来发送请求并获取响应。
+ * 连接的设置工作在静态初始化块中完成，这样在调用相关方法时就能立即启动通信。
+ */
 public class NettyClient {
 	
 	private static ChannelFuture f = null;

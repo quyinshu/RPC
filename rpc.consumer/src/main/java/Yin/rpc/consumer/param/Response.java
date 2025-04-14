@@ -1,5 +1,10 @@
 package Yin.rpc.consumer.param;
 
+/**
+ * 表示客户端 - 服务器通信中的标准化响应。
+ *
+ * 此类封装了响应的唯一标识符、结果数据、响应码以及可选的失败消息。响应码默认值为 "00000"，表示成功，其他值则表示失败。可选消息在失败时提供额外信息。
+ */
 public class Response {
 	private Long id;
 	private Object result;

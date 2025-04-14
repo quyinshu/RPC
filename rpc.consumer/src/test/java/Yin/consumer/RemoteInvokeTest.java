@@ -42,7 +42,7 @@ public class RemoteInvokeTest {
 		userremote.testUser(user);
 //		Long start = System.currentTimeMillis();
 //		for(int i=1;i<10000;i++){
-//			userremote.saveUser(user);
+//			userremote.testUser(user);
 //		}
 //		Long end = System.currentTimeMillis();
 //		Long count = end-start;

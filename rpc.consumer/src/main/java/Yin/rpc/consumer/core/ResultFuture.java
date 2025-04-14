@@ -11,7 +11,18 @@ import Yin.rpc.consumer.param.ClientRequest;
 import Yin.rpc.consumer.param.Response;
 
 
-
+/**
+ * ResultFuture is a utility class designed to handle asynchronous
+ * request/response operations. It serves as a mechanism to manage
+ * the state and outcome of client requests in a concurrent environment.
+ *
+ * The class associates a unique identifier to each request and allows
+ * threads to wait for the response or retrieve it with a timeout mechanism.
+ * It makes use of locks and conditions for thread synchronization.
+ *
+ * A background cleanup thread is also provided to manage timeout
+ * scenarios and ensure removal of expired or stale entries.
+ */
 public class ResultFuture {
 	public final static ConcurrentHashMap<Long,ResultFuture> map = new ConcurrentHashMap<Long,ResultFuture>();
 	final  Lock lock = new ReentrantLock();//更改

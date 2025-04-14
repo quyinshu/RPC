@@ -17,6 +17,19 @@ import Yin.rpc.consumer.core.NettyClient;
 import Yin.rpc.consumer.param.ClientRequest;
 import Yin.rpc.consumer.param.Response;
 
+/**
+ * 一个 Spring 组件，实现了 {@link BeanPostProcessor} 接口，用于处理应用上下文中的 Bean，
+ * 并为使用 {@link RemoteInvoke} 注解标注的字段启用远程方法调用功能。
+ *
+ * 该类主要执行两项任务：
+ * - 利用 {@code postProcessAfterInitialization} 方法在 Bean 初始化之后进行拦截，不过当前实现仅原样返回 Bean，未作进一步处理。
+ * - 在 {@code postProcessBeforeInitialization} 方法中对 Bean 进行扫描和处理，为使用 {@link RemoteInvoke} 注解标注的字段动态创建代理对象。
+ *
+ * InvokeProxy 借助 {@link Enhancer} 类创建的动态代理，拦截被注解字段上的方法调用，
+ * 构建一个 {@link ClientRequest} 对象，通过 {@link NettyClient} 发送请求，并返回获取到的响应。
+ *
+ * 这样做通过抽象底层的网络通信和方法调用过程，实现了与远程服务的透明交互。代理会动态地将远程方法调用绑定到被注解的字段上，简化了远程服务的集成，确保了客户端与服务器交互的一致性。
+ */
 @Component
 public class InvokeProxy implements BeanPostProcessor {
 	public static Enhancer enhancer = new Enhancer();
