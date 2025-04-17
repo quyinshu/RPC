@@ -59,7 +59,7 @@ public class ChannelManager {
 			return null;
 		}
 		//目前采用轮循机制
-		ChannelFuture channelFuture = null;
+		//ChannelFuture channelFuture = null;
 		int size = channelFutures.size();
 
 		// 如果当前位置超出列表大小，重置位置并获取第一个元素

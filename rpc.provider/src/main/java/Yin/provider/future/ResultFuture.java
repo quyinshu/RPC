@@ -1,4 +1,4 @@
-package Yin.rpc.consumer.core;
+package Yin.provider.future;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -7,25 +7,15 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import Yin.rpc.consumer.param.ClientRequest;
-import Yin.rpc.consumer.param.Response;
+import Yin.provider.model.ClientRequest;
+import Yin.provider.model.Response;
 
 
-/**
- * ResultFuture is a utility class designed to handle asynchronous
- * request/response operations. It serves as a mechanism to manage
- * the state and outcome of client requests in a concurrent environment.
- *
- * The class associates a unique identifier to each request and allows
- * threads to wait for the response or retrieve it with a timeout mechanism.
- * It makes use of locks and conditions for thread synchronization.
- *
- * A background cleanup thread is also provided to manage timeout
- * scenarios and ensure removal of expired or stale entries.
- */
+
+
 public class ResultFuture {
 	public final static ConcurrentHashMap<Long,ResultFuture> map = new ConcurrentHashMap<Long,ResultFuture>();
-	final  Lock lock = new ReentrantLock();//更改
+	final Lock lock = new ReentrantLock();
 	private Condition condition = lock.newCondition();
 	private Response response;
 	private Long timeOut = 2*60*1000l;
@@ -37,11 +27,8 @@ public class ResultFuture {
 	}
 	
 	public Response get(){
-//		System.out.println("get的锁信息:"+lock);
 		lock.lock();
-		
 		try {
-
 			while(!done()){
 				condition.await();
 			}
@@ -49,7 +36,6 @@ public class ResultFuture {
 			e.printStackTrace();
 		}finally {
 			lock.unlock();
-			System.out.println(Thread.currentThread().getName() + "   get处释放锁！");
 		}
 		
 		return this.response;
@@ -57,13 +43,11 @@ public class ResultFuture {
 	
 	public Response get(Long time){
 		lock.lock();
-//		System.out.println("get的锁信息:"+lock);
 		try {
 			while(!done()){
-				condition.await(time,TimeUnit.MILLISECONDS);
-				if((System.currentTimeMillis()-start)>time){
-					System.out.println("Future中的请求超时        "
-							+ "                                                                                                                                                                                                               ");
+				condition.await(time,TimeUnit.SECONDS);
+				if((System.currentTimeMillis()-start)>timeOut){
+					System.out.println("Future中的请求超时");
 					break;
 				}
 			}
@@ -71,7 +55,6 @@ public class ResultFuture {
 			e.printStackTrace();
 		}finally {
 			lock.unlock();
-//			System.out.println(Thread.currentThread().getName() + "   get处释放锁！");
 		}
 		
 		return this.response;
@@ -83,7 +66,6 @@ public class ResultFuture {
 			ResultFuture future = map.get(response.getId());
 			if(future != null){
 				Lock lock = future.lock;
-//				System.out.println("Receive的锁信息:"+lock);
 				lock.lock();
 				try {
 					future.setResponse(response);
@@ -93,12 +75,10 @@ public class ResultFuture {
 					e.printStackTrace();
 				}finally {
 					lock.unlock();
-//					System.out.println(Thread.currentThread().getName() + "   receive处释放锁！");
 				}
 			}
 
 		}
-		
 	} 
 
 	private boolean done() {

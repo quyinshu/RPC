@@ -66,8 +66,8 @@ public class InvokeProxy implements BeanPostProcessor {
 						String command = method.getName();//修改
 //						System.out.println("InvokeProxy中的Command是:"+command);
 						clientRequest.setCommand(command);
-						
-						Response response = NettyClient.send(clientRequest);
+						NettyClient nettyClient = new NettyClient();
+						Response response = nettyClient.send(clientRequest);
 						return response;
 					}
 				});

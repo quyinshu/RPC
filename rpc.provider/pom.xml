@@ -2,12 +2,12 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>Yin.rpc.consumer</groupId>
-  <artifactId>Yin.consumer</artifactId>
+  <groupId>Yin.netty.rpc</groupId>
+  <artifactId>Yin.rpc</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
-  <name>Yin.consumer</name>
+  <name>Yin.rpc</name>
   <url>http://maven.apache.org</url>
 
   <properties>
@@ -15,7 +15,12 @@
   </properties>
 
   <dependencies>
-    <dependency>
+  <dependency>
+    <groupId>jakarta.annotation</groupId>
+    <artifactId>jakarta.annotation-api</artifactId>
+    <version>2.1.1</version>
+  </dependency>
+	<dependency>
 		<groupId>org.springframework</groupId>
 		<artifactId>spring-context</artifactId>
 		<version>4.3.9.RELEASE</version>
@@ -51,6 +56,7 @@
 		<artifactId>curator-framework</artifactId>
 		<version>2.4.2</version>
 	</dependency>
+
 	<dependency>
 		<groupId>org.apache.curator</groupId>
 		<artifactId>curator-recipes</artifactId>

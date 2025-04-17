@@ -9,7 +9,7 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <modules>
-        <module>qys.rpc</module>
+        <module>rpc.provider</module>
         <module>rpc.consumer</module>
     </modules>
 

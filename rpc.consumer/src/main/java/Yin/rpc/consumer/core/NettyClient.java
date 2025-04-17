@@ -2,8 +2,9 @@
 package Yin.rpc.consumer.core;
 
 import java.util.List;
+
+import io.netty.channel.*;
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.api.CuratorWatcher;
 import com.alibaba.fastjson.JSONObject;
 
 import Yin.rpc.consumer.constans.Constans;
@@ -13,10 +14,6 @@ import Yin.rpc.consumer.param.Response;
 import Yin.rpc.consumer.zk.ServerWatcher;
 import Yin.rpc.consumer.zk.ZooKeeperFactory;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -26,57 +23,27 @@ import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 
 
-import io.netty.channel.Channel;
-import org.apache.curator.framework.CuratorFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.alibaba.fastjson.JSONObject;
+
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 
-
 /**
- * NettyClient 类负责管理与 Netty 服务器集群的通信，
- * 通过 Zookeeper 实现动态服务发现 和连接管理，提供高可靠的异步客户端实现。
+ * NettyClient is a client implementation that utilizes Netty for communication and integrates
+ * with ZooKeeper for service discovery. It manages communication channels and dynamically connects
+ * to server nodes from the ZooKeeper service registry.
  *
- * 这个类使用合适的配置来初始化一个 Netty 客户端，比如：
- * - 使用必要的处理器和选项来配置 Netty 的 `Bootstrap` 对象。
- * - 设置事件循环组来处理网络事件。
- * - 利用 ZooKeeper 动态地发现和监控服务器实例。
- *
- * 关键功能：
- * - 动态服务器管理：
- * 基于 Zookeeper Watcher 机制自动发现和监控服务节点。实时调整服务器连接池（增/删节点时自动生效）
- * - 连接生命周期管理：
- * 配置并维护 Netty Bootstrap 连接池。通过 ChannelFuture 管理活跃连接状态
- * - 消息处理
- * 内置 StringEncoder/Decoder 实现消息编解码。通过自定义处理器实现业务逻辑
- *
- * 类的行为：
- * - 在初始化过程中，它会根据从 ZooKeeper 接收到的信息连接到可用的服务器。
- * - 添加诸如字符串编码器、解码器以及用于业务逻辑处理的自定义处理器。
- * - 通过 `ChannelManager` 维护活动的服务器连接。
- * - 监控服务器的变化（新增或移除），并动态调整可用服务器池。
- *
- * 关键组件：
- * - `Bootstrap`：已配置的用于建立连接的 Netty 客户端实例。
- * - `ChannelFuture`：表示 I/O 操作的结果，用于发送和接收消息。
- * - `ZooKeeper`：用于服务发现，并通过监听器接收有关服务器变化的更新。
- * - `ClientRequest` 和 `Response`：作为请求/响应负载的数据模型。
- *
- * 方法：
- * - `send(ClientRequest request)`：向服务器发送一个请求，等待并获取相应的响应。
- *
- * 注意：
- * 针对初始化和服务器通信实现了恰当的异常处理。
- * 该类在很大程度上依赖于像 `ChannelManager` 这样的外部组件来管理连接，以及依赖 ZooKeeper 来实现动态服务器发现。
+ * Features:
+ * - Sets up a Netty-based client for asynchronous communication.
+ * - Uses ZooKeeper to discover and manage server nodes dynamically.
+ * - Sends requests to server nodes and handles responses.
+ * - Provides a mechanism to maintain and clean up connections.
  */
 
 public class NettyClient {
 	private static final Logger logger = LoggerFactory.getLogger(NettyClient.class);
-
 
 	public static final Bootstrap b = new Bootstrap();
 	private final EventLoopGroup workerGroup;
@@ -84,15 +51,14 @@ public class NettyClient {
 	private final CuratorFramework zkClient;
 	private final ServerWatcher serverWatcher;
 
-	private static final int DEFAULT_TIMEOUT_SECONDS = 60;
+	private static final long DEFAULT_TIMEOUT_SECONDS = 600L;
 	private static final String DELIMITER = "#";
 
-	public NettyClient(String zkAddress) {
+	public NettyClient() {
 		this.workerGroup = new NioEventLoopGroup();
 		this.channelManager = new ChannelManager();
 		this.zkClient = ZooKeeperFactory.getClient();
 		this.serverWatcher = new ServerWatcher();
-
 		initialize();
 	}
 
@@ -129,17 +95,18 @@ public class NettyClient {
 		List<String> serverPaths = zkClient.getChildren()
 				.usingWatcher(serverWatcher)
 				.forPath(Constans.SERVER_PATH);
+		logger.info("zookeeper {} 路径下服务列表: serverPaths: {}",Constans.SERVER_PATH, serverPaths);
 
-		updateConnections(serverPaths);
+		createConnections(serverPaths);
 	}
 
-	public void updateConnections(List<String> serverPaths) {
+	public void createConnections(List<String> serverPaths) {
 		Set<String> newServers = new HashSet<>();
 
 		for (String path : serverPaths) {
 			try {
 				String[] parts = path.split(DELIMITER);
-				if (parts.length != 2) {
+				if (parts.length <2) {
 					logger.warn("Invalid server path format: {}", path);
 					continue;
 				}
@@ -150,7 +117,7 @@ public class NettyClient {
 
 				if (!newServers.contains(serverKey)) {
 					ChannelFuture channelFuture = b.connect(host, port).syncUninterruptibly();
-					channelManager.addChnannel(channelFuture);
+					ChannelManager.addChnannel(channelFuture);
 					newServers.add(serverKey);
 					ChannelManager.realServerPath.add(serverKey);
 				}
@@ -159,16 +126,15 @@ public class NettyClient {
 			}
 		}
 
-		// 移除不再存在的连接
-		//channelManager.removeInactiveConnections(newServers);
 	}
 
-	public static Response send(ClientRequest request) {
+	public Response send(ClientRequest request) {
 		return send(request, DEFAULT_TIMEOUT_SECONDS);
 	}
 
-	public static Response send(ClientRequest request, long timeoutSeconds) {
-		ChannelFuture f	=ChannelManager.get(ChannelManager.position);
+	public Response send(ClientRequest request, long timeoutSeconds) {
+
+		ChannelFuture f	= ChannelManager.get(ChannelManager.position);
 		if (f == null) {
 			logger.error("Failed to get a valid ChannelFuture. Cannot send the request.");
 			return null;
@@ -179,7 +145,10 @@ public class NettyClient {
 			return null;
 		}
 		try {
-			f.channel().writeAndFlush(JSONObject.toJSONString(request) + "\r\n");
+			//将请求对象序列化成 JSON 字符串并通过 channel 发送到对端（服务端）
+			String msg = JSONObject.toJSONString(request) + "\r\n";
+			f.channel().writeAndFlush(msg);
+
 		}catch (Exception e){
 			logger.error("Failed to send the request: {}", e.getMessage(), e);
 			return null;
@@ -208,6 +177,8 @@ public class NettyClient {
 //	public static final Bootstrap b = new Bootstrap(); //Netty客户端启动类，用于配置网络连接参数
 //
 //	private static ChannelFuture f = null; //当前活动的网络连接通道（静态变量存在线程安全问题，实际应避免这样使用）。
+//
+//	private static final Logger logger = LoggerFactory.getLogger(NettyClient.class);
 //
 //	static{
 //		String host = "localhost";
@@ -274,10 +245,9 @@ public class NettyClient {
 //		f=ChannelManager.get(ChannelManager.position);
 //		f.channel().writeAndFlush(JSONObject.toJSONString(request)+"\r\n");
 ////		f.channel().writeAndFlush("\r\n");
-//		Long timeOut = 60l;
+//		Long timeOut = 60L;
 //		ResultFuture future = new ResultFuture(request);
 //		return future.get(timeOut);
 //
 //	}
-//
 //}

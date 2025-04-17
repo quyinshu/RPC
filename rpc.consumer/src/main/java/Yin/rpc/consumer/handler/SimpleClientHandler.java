@@ -3,6 +3,7 @@ package Yin.rpc.consumer.handler;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import Yin.rpc.consumer.param.ClientRequest;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 
@@ -26,7 +27,7 @@ import org.slf4j.LoggerFactory;
  * - 使用 `ExecutorService` 异步处理 `Response` 对象。
  * - 将已处理的 `Response` 对象委托给 `ResultFuture` 进行进一步处理和同步。
  */
-public class SimpleClientHandler extends ChannelInboundHandlerAdapter implements ChannelHandler {
+public class SimpleClientHandler extends ChannelInboundHandlerAdapter {
 	//ChannelInboundHandlerAdapter：Netty 提供的入站处理器适配器（简化事件处理）
 	private static final Logger logger = LoggerFactory.getLogger(SimpleClientHandler.class);
 
@@ -41,23 +42,31 @@ public class SimpleClientHandler extends ChannelInboundHandlerAdapter implements
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
 		//心跳检测处理，检测心跳消息 "ping"，立即回复 "pong\r\n"
-		final Object m = msg;
-		if(msg.toString().equals("ping")){
+		final Object message = msg;
+		if(message.toString().equals("ping")){
 			//System.out.println("收到读写空闲ping,向服务端发送pong");
 			logger.info("收到读写空闲ping,向服务端发送pong");
-			ctx.channel().writeAndFlush("pong\r\n");
+			ctx.channel().writeAndFlush("pong\r\n"); //把pong传入管道给服务器端
 		}
+		String json = (String) message;
+//		System.out.println("收到服务端返回的原始数据: " + message.toString());
+//		ClientRequest request = JSONObject.parseObject(json, ClientRequest.class);
+//		logger.info("请求命令: {}, 参数: {}", request.getCommand(), request.getContent());
 		
 		//设置response
 		exec.execute(new Runnable() {
 			public void run() {
-				Response response = JSONObject.parseObject(m.toString(), Response.class);
-				//System.out.println("SimpleClientHandler中的Response:"+JSONObject.toJSONString(response));
-				logger.info("SimpleClientHandler中的Response:"+JSONObject.toJSONString(response));
+				//ctx.channel().writeAndFlush("客户端已成功收到响应" + "\r\n");
+
+				//把服务端返回的 msg（JSON字符串）转换成 Java 的 Response 对象。
+				Response response = JSONObject.parseObject(message.toString(), Response.class);
+
+				////通过response的ID可以在map中找到对应的Request,并为相应的request设置response,使得调用get()客户端得到结果
 				ResultFuture.receive(response);
+
+				logger.info("从服务器端收到的响应"+JSONObject.toJSONString(response));
 			}
 		});
-//		ResultFuture.receive(response);//通过response的ID可以在map中找到对应的Request,并为相应的request设置response,使得调用get()客户端得到结果
 	}
 	
 }
